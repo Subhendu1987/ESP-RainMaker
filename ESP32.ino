@@ -51,6 +51,11 @@ char deviceName_2[] = "Desk Light";
 char deviceName_3[] = "Plug";
 char deviceName_4[] = "Outlet";
 
+char deviceName_11[] = "Bedroom Light";
+char deviceName_12[] = "Night Light";
+char deviceName_13[] = "Fan";
+char deviceName_14[] = "Tv";
+
 // Declaring Devices 
 static TemperatureSensor temperature("Temperature");
 static TemperatureSensor humidity("Humidity");
@@ -58,8 +63,11 @@ static LightBulb my_switch1(deviceName_1, &relayPin1);
 static LightBulb my_switch2(deviceName_2, &relayPin2);
 static Switch my_switch3(deviceName_3, &relayPin3);
 static Switch my_switch4(deviceName_4, &relayPin4);
-static Device setir("Set Remote", "custom.device.setir");
-static Device unsetir("Unset Remote", "custom.device.unsetir");
+
+static LightBulb my_bedroomswitch1(deviceName_11);
+static LightBulb my_bedroomswitch2(deviceName_12);
+static Fan my_bedroomswitch3(deviceName_13);
+static Switch my_bedroomswitch4(deviceName_14);
 
 void playbeep(int count = 1, int Frequency = 1500, int length = 300) {
   for (int i = 0; i < count; i++) {
@@ -248,47 +256,59 @@ void write_callback(Device *device, Param *param, const param_val_t val, void *p
       param->updateAndReport(val);
   }
 
+  if (strcmp(device_name, deviceName_11) == 0 && strcmp(param_name, "Power") == 0) {
+      Serial.println("bedroom light");
+  }
 
-  if (strcmp(param_name, deviceName_1) == 0) {
-      if (strcmp(device_name, "Set Remote") == 0) {
-          irSetRelay = 1;
-          isInIRSetMode = true;
-      } else if (strcmp(device_name, "Unset Remote") == 0) {
+
+  if (strcmp(param_name, "Assign Remote") == 0) {
+    if (strcmp(device_name, deviceName_1) == 0){
+        irSetRelay = 1;
+        isInIRSetMode = true;
+    }
+    if (strcmp(device_name, deviceName_2) == 0){
+        irSetRelay = 2;
+        isInIRSetMode = true;
+    }
+    if (strcmp(device_name, deviceName_3) == 0){
+        irSetRelay = 3;
+        isInIRSetMode = true;
+    }
+    if (strcmp(device_name, deviceName_4) == 0){
+        irSetRelay = 4;
+        isInIRSetMode = true;
+    }
+  }
+
+  if (strcmp(param_name, "Unassign Remote") == 0) {
+    if (strcmp(device_name, deviceName_1) == 0){
           EEPROM.put(10,1234567890);
           EEPROM.commit();
           isInIRSetMode = false;
-      }
-  }
-  if (strcmp(param_name, deviceName_2) == 0) {
-      if (strcmp(device_name, "Set Remote") == 0) {
-          irSetRelay = 2;
-          isInIRSetMode = true;
-      } else if (strcmp(device_name, "Unset Remote") == 0) {
+          playbeep(1, 1500, 300);
+    }
+    if (strcmp(device_name, deviceName_2) == 0){
           EEPROM.put(20,1234567890);
           EEPROM.commit();
           isInIRSetMode = false;
-      }
-  }
-  if (strcmp(param_name, deviceName_3) == 0) {
-      if (strcmp(device_name, "Set Remote") == 0) {
-          irSetRelay = 3;
-          isInIRSetMode = true;
-      } else if (strcmp(device_name, "Unset Remote") == 0) {
+          playbeep(1, 1500, 300);
+    }
+    if (strcmp(device_name, deviceName_3) == 0){
           EEPROM.put(30,1234567890);
           EEPROM.commit();
           isInIRSetMode = false;
-      }
-  }
-  if (strcmp(param_name, deviceName_4) == 0) {
-      if (strcmp(device_name, "Set Remote") == 0) {
-          irSetRelay = 4;
-          isInIRSetMode = true;
-      } else if (strcmp(device_name, "Unset Remote") == 0) {
+          playbeep(1, 1500, 300);
+    }
+    if (strcmp(device_name, deviceName_4) == 0){
           EEPROM.put(40,1234567890);
           EEPROM.commit();
           isInIRSetMode = false;
-      }
+          playbeep(1, 1500, 300);
+    }
   }
+
+
+
   if (strcmp(param_name, "All") == 0) {
       if (strcmp(device_name, "Set Remote") == 0) {
           irSetRelay = 5;
@@ -343,29 +363,6 @@ void handleIRSignal() {
       my_switch4.updateAndReportParam("Power", relay4_state ? true : false);  // Report the relay state to RainMaker (synchronizing switch state)
       saveRelayStates(); 
       relay4_state ? playbeep(2, 1500, 200) : playbeep(1, 1500, 300);    
-    } else if (receivedCode == irCodes5) {
-      bool any_state = relay1_state || relay2_state || relay3_state || relay4_state;
-        if (any_state) {
-          relay1_state = false;
-          relay2_state = false;
-          relay3_state = false;
-          relay4_state = false;          
-        } else {
-          relay1_state = true;
-          relay2_state = true;
-          relay3_state = true;
-          relay4_state = true;
-        }
-        digitalWrite(relayPin1, relay1_state ? LOW : HIGH);
-        digitalWrite(relayPin2, relay2_state ? LOW : HIGH);
-        digitalWrite(relayPin3, relay3_state ? LOW : HIGH);
-        digitalWrite(relayPin4, relay4_state ? LOW : HIGH);
-        my_switch1.updateAndReportParam("Power", relay1_state ? true : false);
-        my_switch2.updateAndReportParam("Power", relay2_state ? true : false);
-        my_switch3.updateAndReportParam("Power", relay3_state ? true : false);
-        my_switch4.updateAndReportParam("Power", relay4_state ? true : false);
-        saveRelayStates(); 
-        any_state ? playbeep(2, 1500, 200) : playbeep(1, 1500, 300);   
     }
 
     IrReceiver.resume();
@@ -397,11 +394,6 @@ void handleIRSetMode() {
         break;
       case 4:
         EEPROM.put(40, receivedCode);
-        EEPROM.commit();
-        playbeep(1, 1500, 400);
-        break;
-      case 5:
-        EEPROM.put(50, receivedCode);
         EEPROM.commit();
         playbeep(1, 1500, 400);
         break;
@@ -443,45 +435,44 @@ void setup() {
   my_node = RMaker.initNode(RoomName);
 
 
-  Param ir1_set_enable(deviceName_1, "custom.param.enable", value(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
+  Param ir1_set_enable("Assign Remote", "custom.param.enable", value(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
   ir1_set_enable.addUIType("esp.ui.trigger");
-  setir.addParam(ir1_set_enable);
+  my_switch1.addParam(ir1_set_enable);
 
-  Param ir2_set_enable(deviceName_2, "custom.param.enable", value(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
-  ir2_set_enable.addUIType("esp.ui.trigger");
-  setir.addParam(ir2_set_enable);
-
-  Param ir3_set_enable(deviceName_3, "custom.param.enable", value(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
-  ir3_set_enable.addUIType("esp.ui.trigger");
-  setir.addParam(ir3_set_enable);
-
-  Param ir4_set_enable(deviceName_4, "custom.param.enable", value(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
-  ir4_set_enable.addUIType("esp.ui.trigger");
-  setir.addParam(ir4_set_enable);
-
-  Param all_set_enable("All", "custom.param.enable", value(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
-  all_set_enable.addUIType("esp.ui.trigger");
-  setir.addParam(all_set_enable);
-
-  Param ir1_unset_enable(deviceName_1, "custom.param.enable", value(false), PROP_FLAG_READ | PROP_FLAG_WRITE);
+  Param ir1_unset_enable("Unassign Remote", "custom.param.enable", value(false), PROP_FLAG_READ | PROP_FLAG_WRITE);
   ir1_unset_enable.addUIType("esp.ui.trigger");
-  unsetir.addParam(ir1_unset_enable);
+  my_switch1.addParam(ir1_unset_enable);
 
-  Param ir2_unset_enable(deviceName_2, "custom.param.enable", value(false), PROP_FLAG_READ | PROP_FLAG_WRITE);
+
+
+  Param ir2_set_enable("Assign Remote", "custom.param.enable", value(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
+  ir2_set_enable.addUIType("esp.ui.trigger");
+  my_switch2.addParam(ir2_set_enable);
+
+  Param ir2_unset_enable("Unassign Remote", "custom.param.enable", value(false), PROP_FLAG_READ | PROP_FLAG_WRITE);
   ir2_unset_enable.addUIType("esp.ui.trigger");
-  unsetir.addParam(ir2_unset_enable);
+  my_switch2.addParam(ir2_unset_enable);
 
-  Param ir3_unset_enable(deviceName_3, "custom.param.enable", value(false), PROP_FLAG_READ | PROP_FLAG_WRITE);
+
+
+  Param ir3_set_enable("Assign Remote", "custom.param.enable", value(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
+  ir3_set_enable.addUIType("esp.ui.trigger");
+  my_switch3.addParam(ir3_set_enable);
+
+  Param ir3_unset_enable("Unassign Remote", "custom.param.enable", value(false), PROP_FLAG_READ | PROP_FLAG_WRITE);
   ir3_unset_enable.addUIType("esp.ui.trigger");
-  unsetir.addParam(ir3_unset_enable);
+  my_switch3.addParam(ir3_unset_enable);
 
-  Param ir4_unset_enable(deviceName_4, "custom.param.enable", value(false), PROP_FLAG_READ | PROP_FLAG_WRITE);
+
+
+  Param ir4_set_enable("Assign Remote", "custom.param.enable", value(true), PROP_FLAG_READ | PROP_FLAG_WRITE);
+  ir4_set_enable.addUIType("esp.ui.trigger");
+  my_switch4.addParam(ir4_set_enable);
+
+  Param ir4_unset_enable("Unassign Remote", "custom.param.enable", value(false), PROP_FLAG_READ | PROP_FLAG_WRITE);
   ir4_unset_enable.addUIType("esp.ui.trigger");
-  unsetir.addParam(ir4_unset_enable);
+  my_switch4.addParam(ir4_unset_enable);
 
-  Param all_unset_enable("All", "custom.param.enable", value(false), PROP_FLAG_READ | PROP_FLAG_WRITE);
-  all_unset_enable.addUIType("esp.ui.trigger");
-  unsetir.addParam(all_unset_enable);
 
   // RainMaker Setup
   my_switch1.addCb(write_callback);
@@ -489,8 +480,11 @@ void setup() {
   my_switch3.addCb(write_callback);
   my_switch4.addCb(write_callback);
 
-  setir.addCb(write_callback);
-  unsetir.addCb(write_callback);
+  // my_bedroomswitch1.addCb(write_callback);
+  // my_bedroomswitch2.addCb(write_callback);
+  // my_bedroomswitch3.addCb(write_callback);
+  // my_bedroomswitch4.addCb(write_callback);
+
 
   // Add devices to RainMaker  
   my_node.addDevice(temperature);
@@ -500,8 +494,11 @@ void setup() {
   my_node.addDevice(my_switch3);
   my_node.addDevice(my_switch4);
 
-  my_node.addDevice(setir);
-  my_node.addDevice(unsetir);
+  // my_node.addDevice(my_bedroomswitch1);
+  // my_node.addDevice(my_bedroomswitch2);
+  // my_node.addDevice(my_bedroomswitch3);
+  // my_node.addDevice(my_bedroomswitch4);
+
 
    //This is optional
   RMaker.enableOTA(OTA_USING_PARAMS);
@@ -535,12 +532,12 @@ void loop() {
   handleIRSignal();
   handleIRSetMode();
 
-  // Periodically read DHT sensor data
-  static unsigned long lastDHTRead = 0;
-  if (millis() - lastDHTRead > 10000) { // Read every 10 seconds
-    lastDHTRead = millis();
-    readDHTData();
-  }
+  // // Periodically read DHT sensor data
+  // static unsigned long lastDHTRead = 0;
+  // if (millis() - lastDHTRead > 10000) { // Read every 10 seconds
+  //   lastDHTRead = millis();
+  //   readDHTData();
+  // }
 
   if (digitalRead(RESETPIN) == LOW) { //Push button pressed
 
